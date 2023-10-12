@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import * as textmate from 'vscode-textmate'
 import { useAsync } from './async'
 import { GrammarPreview } from './grammar'
+import * as yaml from 'js-yaml'
 
 export function App() {
   const [test, setTest] = useState<string>('')
@@ -10,12 +11,18 @@ export function App() {
     fetch('https://raw.githubusercontent.com/MinecraftCommands/syntax-mcfunction/main/tests/vanilla.mcfunction').then(r => r.text()).then(setTest)
   }, [])
 
-  const [grammar, setGrammar] = useState<string>()
+  const [yamlGrammar, setGrammar] = useState<string>()
   useEffect(() => {
-    fetch('https://raw.githubusercontent.com/Arcensoth/language-mcfunction/main/mcfunction.tmLanguage').then(r => r.text()).then(setGrammar)
+    fetch('https://raw.githubusercontent.com/MinecraftCommands/syntax-mcfunction/main/mcfunction.tmLanguage.yaml').then(r => r.text()).then(setGrammar)
   }, [])
+  const plistGrammar = useMemo(() => {
+    if (!yamlGrammar) return undefined
+    const data = yaml.load(yamlGrammar)
+    const plist = toPlist(data)
+    return `<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0">${plist}</plist>`
+  }, [yamlGrammar])
 
-  const otherGrammar = useAsync(() => fetch('https://raw.githubusercontent.com/MinecraftCommands/syntax-mcfunction/main/mcfunction.tmLanguage').then(r => r.text()))
+  const otherGrammar = useAsync(() => fetch('https://raw.githubusercontent.com/Arcensoth/language-mcfunction/main/mcfunction.tmLanguage').then(r => r.text()))
 
   const theme1 = useAsync(() => fetch('https://raw.githubusercontent.com/microsoft/vscode/main/extensions/theme-defaults/themes/dark_vs.json').then(r => r.text()))
   const theme2 = useAsync(() => fetch('https://raw.githubusercontent.com/microsoft/vscode/main/extensions/theme-defaults/themes/dark_plus.json').then(r => r.text()))
@@ -44,19 +51,34 @@ export function App() {
   }, [ref0, ref1, ref2])
 
   return <main class="h-screen grid grid-cols-2 overflow-hidden" style="color-scheme: dark;">
-    {grammar !== undefined && otherGrammar !== undefined && theme !== undefined && <>
+    {plistGrammar !== undefined && otherGrammar !== undefined && theme !== undefined && <>
       <div class="h-[50vh]">
-        <textarea class="h-full w-full bg-neutral-800 p-2 whitespace-pre text-sm font-mono outline-none resize-none" value={grammar} onInput={e => setGrammar((e.target as HTMLTextAreaElement).value)} />
+        <textarea class="h-full w-full p-2 bg-neutral-900 whitespace-pre text-sm font-mono outline-none resize-none overflow-scroll" value={yamlGrammar} onInput={e => setGrammar((e.target as HTMLTextAreaElement).value)} />
       </div>
       <div class="h-[50vh]">
-        <textarea ref={ref0} class="h-full w-full bg-neutral-800 p-2 whitespace-pre text-sm font-mono outline-none resize-none" value={test} onInput={e => setTest((e.target as HTMLTextAreaElement).value)} onScroll={onScroll}/>
+        <textarea ref={ref0} class="h-full w-full p-2 bg-neutral-900 whitespace-pre text-sm font-mono outline-none resize-none overflow-scroll" value={test} onInput={e => setTest((e.target as HTMLTextAreaElement).value)} onScroll={onScroll}/>
       </div>
-      <div ref={ref1} class="overflow-scroll bg-neutral-800 p-2 whitespace-pre text-sm font-mono" onScroll={onScroll}>
-        <GrammarPreview text={test} grammar={grammar} theme={theme} />
+      <div ref={ref1} class="overflow-scroll p-2 whitespace-pre text-sm font-mono" onScroll={onScroll}>
+        <GrammarPreview text={test} grammar={plistGrammar} theme={theme} />
       </div>
-      <div ref={ref2} class="overflow-scroll bg-neutral-800 p-2 whitespace-pre text-sm font-mono" onScroll={onScroll}>
+      <div ref={ref2} class="overflow-scroll p-2 whitespace-pre text-sm font-mono" onScroll={onScroll}>
         <GrammarPreview text={test} grammar={otherGrammar} theme={theme} />
       </div>
     </>}
   </main>
+}
+
+function toPlist(obj: unknown): string {
+  if (Array.isArray(obj)) {
+    return `<array>${obj.map(item => toPlist(item)).join('')}</array>`;
+  } else if (typeof obj === 'object' && obj !== null) {
+    const entries = Object.entries(obj);
+    return `<dict>${entries.map(([key, value]) => `<key>${key}</key>${toPlist(value)}`).join('')}</dict>`;
+  } else if (Number.isInteger(obj)) {
+    return `<integer>${obj}</integer>`;
+  } else if (typeof obj === 'number') {
+    return `<real>${obj}</real>`;
+  } else {
+    return `<${typeof obj}>${obj}</${typeof obj}>`;
+  }
 }
