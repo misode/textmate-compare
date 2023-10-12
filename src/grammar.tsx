@@ -19,7 +19,11 @@ async function getOnigLib() {
 
 type TokenData = {
   text: string,
-  settings: Record<string, string>,
+  foreground: string,
+	italic: boolean,
+	bold: boolean,
+	underline: boolean,
+	striketrough: boolean,
 }
 
 type Props = {
@@ -70,7 +74,15 @@ export function GrammarPreview({ text, grammar, theme }: Props) {
         const nextIndex = lineTokens.tokens[j+1]
         const text = line.substring(prevIndex, nextIndex)
         const foreground = colormap[(metadata & 0b00000000111111111000000000000000) >>> 15]
-        lineData.push({ text, settings: { foreground } })
+				const fontStyle = (metadata & 0b00000000000000000111100000000000) >> 11
+        lineData.push({
+					text,
+					foreground,
+					italic: Boolean(fontStyle & 1),
+					bold: Boolean(fontStyle & 2),
+					underline: Boolean(fontStyle & 4),
+					striketrough: Boolean(fontStyle & 8),
+				})
         prevIndex = nextIndex
       }
       ruleStack = lineTokens.ruleStack
@@ -81,7 +93,7 @@ export function GrammarPreview({ text, grammar, theme }: Props) {
 
 	return <>
 		{tokens?.map(line => <div class="w-full">
-			{line.map(token => <span style={`color: ${token.settings.foreground};`}>
+			{line.map(token => <span style={`color: ${token.foreground};${token.italic ? 'font-style: italic;' : ''}${token.bold ? 'font-weight: bold;' : ''}text-decoration:${token.underline ? 'underline' : ''}${token.striketrough ? ' line-through': ''};`}>
 				{token.text}
 			</span>)}
 			&#8203;
