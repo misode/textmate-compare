@@ -1,5 +1,5 @@
 import json5 from 'json5'
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import * as textmate from 'vscode-textmate'
 import { useAsync } from './async'
 import { GrammarPreview } from './grammar'
@@ -33,24 +33,13 @@ export function App() {
   const ref1 = useRef<HTMLDivElement>(null)
   const ref2 = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (!ref0.current || !ref1.current || !ref2.current) return
+  const onScroll = useCallback((e: Event) => {
     const refs = [ref0.current, ref1.current, ref2.current]
-    const onScroll = (ref: HTMLElement) => () => {
-      for (const r of refs) {
-        if (r !== ref) {
-          r.scrollTop = ref.scrollTop
-          r.scrollLeft = ref.scrollLeft
-        }
-      }
-    }
-    for (const ref of refs) {
-      ref.addEventListener('scroll', onScroll(ref))
-    }
-    return () => {
-      for (const ref of refs) {
-        ref.removeEventListener('scroll', onScroll(ref))
-      }
+    const target = e.target as HTMLElement
+    for (const r of refs) {
+      if (!r || r === target) continue
+      r.scrollTop = target.scrollTop
+      r.scrollLeft = target.scrollLeft
     }
   }, [ref0, ref1, ref2])
 
@@ -60,12 +49,12 @@ export function App() {
         <textarea class="h-full w-full bg-neutral-800 p-2 whitespace-pre text-sm font-mono outline-none resize-none" value={grammar} onInput={e => setGrammar((e.target as HTMLTextAreaElement).value)} />
       </div>
       <div class="h-[50vh]">
-        <textarea ref={ref0} class="h-full w-full bg-neutral-800 p-2 whitespace-pre text-sm font-mono outline-none resize-none" value={test} onInput={e => setTest((e.target as HTMLTextAreaElement).value)} />
+        <textarea ref={ref0} class="h-full w-full bg-neutral-800 p-2 whitespace-pre text-sm font-mono outline-none resize-none" value={test} onInput={e => setTest((e.target as HTMLTextAreaElement).value)} onScroll={onScroll}/>
       </div>
-      <div ref={ref1} class="overflow-scroll bg-neutral-800 p-2 whitespace-pre text-sm font-mono">
+      <div ref={ref1} class="overflow-scroll bg-neutral-800 p-2 whitespace-pre text-sm font-mono" onScroll={onScroll}>
         <GrammarPreview text={test} grammar={grammar} theme={theme} />
       </div>
-      <div ref={ref2} class="overflow-scroll bg-neutral-800 p-2 whitespace-pre text-sm font-mono">
+      <div ref={ref2} class="overflow-scroll bg-neutral-800 p-2 whitespace-pre text-sm font-mono" onScroll={onScroll}>
         <GrammarPreview text={test} grammar={otherGrammar} theme={theme} />
       </div>
     </>}

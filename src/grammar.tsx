@@ -3,6 +3,20 @@ import * as textmate from 'vscode-textmate'
 import * as oniguruma from 'vscode-oniguruma'
 import onigurumaUrl from '../node_modules/vscode-oniguruma/release/onig.wasm?url'
 
+let onigurumaLib: Promise<textmate.IOnigLib> | undefined
+async function getOnigLib() {
+	if (!onigurumaLib) {
+		onigurumaLib = (async () => {
+			const response = await fetch(onigurumaUrl)
+			return oniguruma.loadWASM(response).then<textmate.IOnigLib>(() => ({
+        createOnigScanner: (patterns) => new oniguruma.OnigScanner(patterns),
+        createOnigString: (s) => new oniguruma.OnigString(s),
+      }))
+		})()
+	}
+	return onigurumaLib
+}
+
 type TokenData = {
   text: string,
   settings: Record<string, string>,
@@ -19,29 +33,24 @@ export function GrammarPreview({ text, grammar, theme }: Props) {
   const [colormap, setColormap] = useState<string[]>()
 
   useEffect(() => {
-    fetch(onigurumaUrl).then(async (onigurumaBin) => {
-      const onigurumaLib = oniguruma.loadWASM(onigurumaBin).then<textmate.IOnigLib>(() => ({
-        createOnigScanner: (patterns) => new oniguruma.OnigScanner(patterns),
-        createOnigString: (s) => new oniguruma.OnigString(s),
-      }))
-      const registry = new textmate.Registry({
-        onigLib: onigurumaLib,
-        loadGrammar: async (scopeName) => {
-          if (scopeName === 'source.mcfunction') {
-            return textmate.parseRawGrammar(grammar)
-          }
-          return null
-        },
-        theme: theme,
-      })
-      const loadedGrammar = await registry.loadGrammar('source.mcfunction')
-      setLoadedGrammar(loadedGrammar ?? undefined)
-      const colormap = registry.getColorMap()
-      colormap[1] = '#ffffff'
-      colormap[2] = '#000000'
-      setColormap(colormap)
-      return () => registry.dispose()
-    })
+		const registry = new textmate.Registry({
+			onigLib: getOnigLib(),
+			loadGrammar: async (scopeName) => {
+				if (scopeName === 'source.mcfunction') {
+					return textmate.parseRawGrammar(grammar)
+				}
+				return null
+			},
+			theme: theme,
+		})
+		registry.loadGrammar('source.mcfunction').then(loadedGrammar => {
+			setLoadedGrammar(loadedGrammar ?? undefined)
+		})
+		const colormap = registry.getColorMap()
+		colormap[1] = '#ffffff'
+		colormap[2] = '#000000'
+		setColormap(colormap)
+		return () => registry.dispose()
   }, [grammar])
 
   const [tokens, setTokens] = useState<TokenData[][]>()
