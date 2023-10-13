@@ -17,22 +17,25 @@ async function getOnigLib() {
 	return onigurumaLib
 }
 
-type TokenData = {
+export type TokenData = {
   text: string,
   foreground: string,
 	italic: boolean,
 	bold: boolean,
 	underline: boolean,
 	striketrough: boolean,
+	scopes: string[],
 }
 
 type Props = {
 	text: string,
 	grammar: string,
 	theme: textmate.IRawTheme,
+	inspect: TokenData | undefined,
+	onInspect: (token: TokenData) => void,
 }
 
-export function GrammarPreview({ text, grammar, theme }: Props) {
+export function GrammarPreview({ text, grammar, theme, inspect, onInspect }: Props) {
 	const [loadedGrammar, setLoadedGrammar] = useState<textmate.IGrammar>()
   const [colormap, setColormap] = useState<string[]>()
 
@@ -68,8 +71,10 @@ export function GrammarPreview({ text, grammar, theme }: Props) {
       const line = lines[i]
       const lineData: TokenData[] = []
       const lineTokens = loadedGrammar.tokenizeLine2(line, ruleStack)
+			const lineScopes = loadedGrammar.tokenizeLine(line, ruleStack)
       let prevIndex = lineTokens.tokens[0]
       for (let j = 1; j < lineTokens.tokens.length; j += 2) {
+				const scopes = lineScopes.tokens[Math.floor(j/2)].scopes
         const metadata = lineTokens.tokens[j]
         const nextIndex = lineTokens.tokens[j+1]
         const text = line.substring(prevIndex, nextIndex)
@@ -82,6 +87,7 @@ export function GrammarPreview({ text, grammar, theme }: Props) {
 					bold: Boolean(fontStyle & 2),
 					underline: Boolean(fontStyle & 4),
 					striketrough: Boolean(fontStyle & 8),
+					scopes,
 				})
         prevIndex = nextIndex
       }
@@ -93,7 +99,7 @@ export function GrammarPreview({ text, grammar, theme }: Props) {
 
 	return <>
 		{tokens?.map(line => <div class="w-full">
-			{line.map(token => <span style={`color: ${token.foreground};${token.italic ? 'font-style: italic;' : ''}${token.bold ? 'font-weight: bold;' : ''}text-decoration:${token.underline ? 'underline' : ''}${token.striketrough ? ' line-through': ''};`}>
+			{line.map(token => <span class={inspect === token ? 'bg-neutral-700' : ''} style={`color: ${token.foreground};${token.italic ? 'font-style: italic;' : ''}${token.bold ? 'font-weight: bold;' : ''}text-decoration:${token.underline ? 'underline' : ''}${token.striketrough ? ' line-through': ''};`} onMouseEnter={() => onInspect(token)}>
 				{token.text}
 			</span>)}
 			&#8203;

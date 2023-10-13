@@ -2,7 +2,7 @@ import json5 from 'json5'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import * as textmate from 'vscode-textmate'
 import { useAsync } from './async'
-import { GrammarPreview } from './grammar'
+import { GrammarPreview, TokenData } from './grammar'
 import * as yaml from 'js-yaml'
 
 export function App() {
@@ -50,20 +50,30 @@ export function App() {
     }
   }, [ref0, ref1, ref2])
 
+	const [inspect, setInspect] = useState<TokenData>()
+
   return <main class="h-screen grid grid-cols-2 overflow-hidden" style="color-scheme: dark;">
     {plistGrammar !== undefined && otherGrammar !== undefined && theme !== undefined && <>
-      <div class="h-[50vh]">
+      <div class="h-[33vh]" onMouseEnter={() => setInspect(undefined)}>
         <textarea class="h-full w-full p-2 bg-neutral-900 whitespace-pre text-sm font-mono outline-none resize-none overflow-scroll" value={yamlGrammar} onInput={e => setGrammar((e.target as HTMLTextAreaElement).value)} />
       </div>
-      <div class="h-[50vh]">
+      <div class="h-[33vh]" onMouseEnter={() => setInspect(undefined)}>
         <textarea ref={ref0} class="h-full w-full p-2 bg-neutral-900 whitespace-pre text-sm font-mono outline-none resize-none overflow-scroll" value={test} onInput={e => setTest((e.target as HTMLTextAreaElement).value)} onScroll={onScroll}/>
       </div>
       <div ref={ref1} class="overflow-scroll p-2 whitespace-pre text-sm font-mono" onScroll={onScroll}>
-        <GrammarPreview text={test} grammar={plistGrammar} theme={theme} />
+        <GrammarPreview text={test} grammar={plistGrammar} theme={theme} inspect={inspect} onInspect={setInspect} />
       </div>
       <div ref={ref2} class="overflow-scroll p-2 whitespace-pre text-sm font-mono" onScroll={onScroll}>
-        <GrammarPreview text={test} grammar={otherGrammar} theme={theme} />
+        <GrammarPreview text={test} grammar={otherGrammar} theme={theme} inspect={inspect} onInspect={setInspect} />
       </div>
+      {inspect && <div class="bg-neutral-800 col-span-2 font-mono px-2 py-1">
+        <div>
+          Style: <span class="inline-block relative top-0.5 w-4 h-4 align-baseline" style={`background-color: ${inspect.foreground}`}/> {inspect.foreground} {inspect.italic && 'italic'} {inspect.bold && 'bold'} {inspect.underline && 'underline'} {inspect.striketrough && 'strikethrough'}
+        </div>
+        <div>
+          Scopes: {[...inspect.scopes].reverse().join(', ')}
+        </div>
+      </div>}
     </>}
   </main>
 }
